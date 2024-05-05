@@ -39,18 +39,18 @@ def execute_command( cmd ):
     '''
     Execute the given command line instruction.
     '''
-    global current_dir
     output = obfuscate( STR_COMMAND_TOOK_LONG )
 
     def target():
-        if cmd.startswith( "cd " ):  # special logic for cd instructions
-            os.chdir( os.path.join( current_dir , cmd[ 3 : ] ) )
-            current_dir = os.path.abspath( os.getcwd() )
-            output = obfuscate( STR_CD ) + current_dir
+        global current_dir  # Declare the use of the global variable
+        if cmd.startswith("cd "):
+            os.chdir(os.path.join(current_dir, cmd[3:]))
+            current_dir = os.path.abspath(os.getcwd())
+            output = "Changed directory to " + current_dir
         else:
-            process = subprocess.Popen( cmd , shell = True , stdout = subprocess.PIPE , stderr = subprocess.PIPE , cwd = current_dir )
+            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=current_dir)
             out, err = process.communicate()
-            output = out.decode() + err.decode()  # Update output within the thread
+            output = out.decode() + err.decode()
 
     thread = threading.Thread( target = target )
     thread.start()
