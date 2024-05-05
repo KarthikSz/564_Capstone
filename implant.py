@@ -43,7 +43,6 @@ def execute_command( cmd ):
     output = obfuscate( STR_COMMAND_TOOK_LONG )
 
     def target():
-        nonlocal output
         if cmd.startswith( "cd " ):  # special logic for cd instructions
             os.chdir( os.path.join( current_dir , cmd[ 3 : ] ) )
             current_dir = os.path.abspath( os.getcwd() )
