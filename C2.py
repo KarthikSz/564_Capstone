@@ -5,6 +5,7 @@ def connect_to_implant( server_socket , port ):
     '''
     Accept connection from implant and connect
     '''
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind( ( '0.0.0.0' , port ) )
     server_socket.listen( 1 )
     print( "Listening for connection on port {} ".format( port ) )
