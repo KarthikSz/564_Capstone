@@ -33,7 +33,7 @@ def main():
     '''
     Main entry function for C2
     '''
-    host = '127.0.0.1'
+    host = '44.222.229.236'
     port = 9999
 
     with socket.socket() as server_socket:
