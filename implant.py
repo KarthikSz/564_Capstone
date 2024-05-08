@@ -29,10 +29,7 @@ def check_debugger():
     '''
     Check if the code is being run under debugger in Windows
     '''
-    try:
-        return ctypes.windll.kernel32.IsDebuggerPresent() != 0
-    except AttributeError:
-        return False
+    return ctypes.windll.kernel32.IsDebuggerPresent() != 0
 
 def apply_update( updt ):
     '''
